@@ -1,0 +1,60 @@
+{
+  "variables": {
+    "aws_ami_name": "wso2-aws-base",
+    "aws_access_key": "",
+    "aws_secret_key": "",
+    "aws_region": "us-east-2",
+    "aws_source_ami": "ami-00f03cfdc90a7a4dd"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key`}}",
+      "secret_key": "{{user `aws_secret_key`}}",
+      "ami_name": "{{user `aws_ami_name`}}",
+      "region": "{{user `aws_region`}}",
+      "source_ami": "{{user `aws_source_ami`}}",
+      "instance_type": "m4.xlarge",
+      "communicator": "ssh",
+      "ssh_username": "ubuntu",
+      "run_tags": {
+        "Name": "wso2-aws-base-ami-builder"
+      },
+      "ami_block_device_mappings": [
+        {
+          "device_name": "/dev/xvda",
+          "volume_size": 10,
+          "delete_on_termination": true
+        }
+      ]
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "check_lynis.sh",
+      "destination": "/home/ubuntu/"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo rm  -rf /var/lib/dpkg/lock-frontend",
+        "sudo rm  -rf /var/lib/apt/lists/lock",
+        "sudo rm  -rf /var/cache/apt/archives/lock",
+        "sudo rm  -rf /var/lib/dpkg/lock",
+        "sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C80E383C3DE9F082E01391A0366C67DE91CA5D5F",
+        "sudo add-apt-repository \"deb [arch=amd64] https://packages.cisofy.com/community/lynis/deb/ xenial main\"",
+        "sudo apt-get update",
+        "sudo apt install unzip",
+        "sudo apt-get install -q -y mysql-client",
+        "sudo DEBIAN_FRONTEND=noninteractive apt install -q -y python-pip",
+        "sudo apt install -q -y maven",
+        "sudo apt-get install lynis",
+        "sudo lynis audit system",
+        "sudo bash /home/ubuntu/check_lynis.sh -w 60",
+        "[ $? -gt 0 ] && echo 'Too Bad, Vulnerable' && exit 1",
+        "echo 'We are good!!!'"
+      ]
+    }
+  ]
+}
